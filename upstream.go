@@ -82,7 +82,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Loaded %d sources from ./UPSTREAM\n", len(m.Sources))
+	fmt.Printf("# Loaded %d sources from ./UPSTREAM\n\n", len(m.Sources))
 	for _, src := range m.Sources {
 		if src.Name == "" {
 			fmt.Printf("skipping unnamed source\n")
@@ -90,4 +90,6 @@ func main() {
 		}
 		fmt.Printf("git fetch %s %s:refs/heads/upstream/%s\n", src.Url, src.Branch, src.Name)
 	}
+	dstBranch := "refs/heads/upstream-assembled"
+	fmt.Printf("git branch -D '%s' && git branch -f '%s' master\n", dstBranch, dstBranch)
 }
