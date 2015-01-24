@@ -4,8 +4,8 @@
 //
 // We introduce 2 key features:
 //
-// 1: auto-pull from trusted maintainers 
-// 
+// 1: auto-pull from trusted maintainers
+//
 // The idea is to declare authoritative upstream repositories for different
 // parts of the repository, then to assemble the official repository from these
 // various sources. As the project is reorganized, and new maintainers take ownership
@@ -47,10 +47,14 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 
 	"github.com/BurntSushi/toml"
 )
@@ -68,6 +72,10 @@ type Source struct {
 }
 
 func main() {
+	buildid := RandomString()[:4]
+	fmt.Printf("# Starting build %s\n", buildid)
+	fmt.Printf("set -e\n")
+
 	f, err := os.Open("UPSTREAM")
 	if err != nil {
 		log.Fatal(err)
@@ -81,15 +89,106 @@ func main() {
 	if err := toml.Unmarshal(data, &m); err != nil {
 		log.Fatal(err)
 	}
-
+	// Apply defaults
+	for _, src := range m.Sources {
+		if src.Branch == "" {
+			src.Branch = "master"
+		}
+		if len(src.Mapping) == 0 {
+			src.Mapping = [][2]string{{"/", "/"}}
+		}
+	}
 	fmt.Printf("# Loaded %d sources from ./UPSTREAM\n\n", len(m.Sources))
+
 	for _, src := range m.Sources {
 		if src.Name == "" {
 			fmt.Printf("skipping unnamed source\n")
 			continue
 		}
-		fmt.Printf("git fetch %s %s:refs/heads/upstream/%s\n", src.Url, src.Branch, src.Name)
+		src.fetch(buildid)
 	}
-	dstBranch := "refs/heads/upstream-assembled"
-	fmt.Printf("git branch -D '%s' && git branch -f '%s' master\n", dstBranch, dstBranch)
+
+	dupBranch("master", dstBranch(buildid))
+
+	// Apply mapping
+	for _, src := range m.Sources {
+		baseBranch := src.baseBranch(buildid)
+		for mapid, mapping := range src.Mapping {
+			var (
+				from = path.Clean(mapping[0])
+				to   = path.Clean(mapping[1])
+			)
+			mapBranch := src.mapBranch(buildid, mapid)
+			dupBranch(baseBranch, mapBranch)
+			// 1: apply the source path ('subdirectory-filter')
+			if from != "/" {
+				zoomIn(mapBranch, from)
+			}
+
+			// 2: apply the dst path ('tree-filter')
+			if to != "" {
+				zoomOut(mapBranch, to)
+			}
+
+			// 3: apply the resulting branch as a new layer
+			mergeLayer(dstBranch(buildid), mapBranch)
+		}
+	}
+
+}
+
+func mergeLayer(bottom, top string) {
+	fmt.Printf("# mergeLayer(%s, %s)\n", bottom, top)
+	fmt.Printf("git checkout '%s' && git merge -X ours '%s' && git checkout '%s' && git merge '%s'\n\n",
+		top, bottom, bottom, top,
+	)
+}
+
+func zoomIn(branch, dir string) {
+	fmt.Printf("# zoomIn(%s, %s)\n", branch, dir)
+	fmt.Printf("(cd $(git rev-parse --show-toplevel) && git filter-branch -f --subdirectory-filter '%s' '%s')\n\n", dir, branch)
+}
+
+func zoomOut(branch, dir string) {
+	fmt.Printf("# zoomOut(%s, %s)\n", branch, dir)
+	tmp := RandomString()[:8]
+	fmt.Printf(`(
+	cd $(git rev-parse --show-toplevel) \
+	&& git filter-branch -f --tree-filter "mkdir .'%s' && mv * .'%s'/ && mkdir -p '%s' && mv .'%s'/* '%s'/ && rm -r .'%s'" '%s'
+)
+
+`, tmp, tmp, dir, tmp, dir, tmp, branch,
+	)
+}
+
+func dupBranch(src, dst string) {
+	fmt.Printf("# dupBranch(%s, %s)\n", src, dst)
+	fmt.Printf("{ git branch -D '%s' 2>/dev/null || true; } && git branch -f '%s' '%s'\n\n", dst, dst, src)
+}
+
+func dstBranch(buildid string) string {
+	return path.Join("citizenkane", buildid, "dst")
+}
+
+func (src *Source) fetch(buildid string) {
+	fmt.Printf("# [%s] fetch(%s)\n", buildid, src.Name)
+	fmt.Printf("git fetch -f %s %s:%s\n\n", src.Url, src.Branch, src.baseBranch(buildid))
+}
+
+func (src *Source) baseBranch(buildid string) string {
+	return path.Join("citizenkane", buildid, "base", src.Name)
+}
+
+func (src *Source) mapBranch(buildid string, mapid int) string {
+	return path.Join("citizenkane", buildid, "map", src.Name, fmt.Sprintf("%d", mapid))
+}
+
+// borrowed from github.com/docker/docker/utils/random.go
+func RandomString() string {
+	id := make([]byte, 32)
+
+	if _, err := io.ReadFull(rand.Reader, id); err != nil {
+		panic(err) // This shouldn't happen
+	}
+	return hex.EncodeToString(id)
 }

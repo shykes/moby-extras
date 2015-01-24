@@ -1,13 +1,14 @@
+
 [[source]]
 
-	name = "shykes-dev"
+	name = "libpack"
 	owner = "shykes"
 
-	url = "https://github.com/shykes/p16"
-	branch = "publish"
+	url = "https://github.com/docker/libpack"
+	branch = "master"
 
 	mapping = [
-		["/", "/"]
+		["/", "gopkg/libpack"]
 	]
 
 [[source]]
