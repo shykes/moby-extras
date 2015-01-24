@@ -81,5 +81,13 @@ func main() {
 	if err := toml.Unmarshal(data, &m); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%#v\n", m)
+
+	fmt.Printf("Loaded %d sources from ./UPSTREAM\n", len(m.Sources))
+	for _, src := range m.Sources {
+		if src.Name == "" {
+			fmt.Printf("skipping unnamed source\n")
+			continue
+		}
+		fmt.Printf("git fetch %s %s:refs/heads/upstream/%s\n", src.Url, src.Branch, src.Name)
+	}
 }
