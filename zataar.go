@@ -54,88 +54,73 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
-	"os"
 	"path"
+	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/spf13/cobra"
 )
 
-type Manifest struct {
-	Sources []Source `toml:"source"`
-}
-
-type Source struct {
-	Name    string      `toml:"name"`
-	Owner   string      `toml:"owner"`
-	Url     string      `toml:"url"`
-	Branch  string      `toml:"branch"`
-	Mapping [][2]string `toml:"mapping"`
-}
-
 func main() {
+	newTransform().Execute()
+}
+
+type Transform struct {
+	*cobra.Command
+	BranchIn string
+	Mapping  [][2]string
+}
+
+func newTransform() *Transform {
+	t := &Transform{
+		Command: &cobra.Command{
+			Use: "transform a git branch",
+		},
+	}
+	t.Command.Flags().StringVar(&(t.BranchIn), "input", "master", "input branch")
+	t.Command.Run = t.run
+	return t
+}
+
+func (t *Transform) run(cmd *cobra.Command, args []string) {
 	buildid := RandomString()[:4]
+	for _, arg := range args {
+		words := strings.SplitN(arg, ":", 2)
+		if len(words) == 1 {
+			words = append(words, "")
+		}
+		t.Mapping = append(t.Mapping, [2]string{words[0], words[1]})
+	}
+	if len(t.Mapping) == 0 {
+		t.Mapping = [][2]string{{"/", "/"}}
+	}
+
 	fmt.Printf("# Starting build %s\n", buildid)
 	fmt.Printf("set -e\n")
 
-	f, err := os.Open("UPSTREAM")
-	if err != nil {
-		log.Fatal(err)
-	}
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var m Manifest
-	if _, err := toml.Decode(string(data), &m); err != nil {
-		log.Fatal(err)
-	}
-	// Apply defaults
-	for _, src := range m.Sources {
-		if src.Branch == "" {
-			src.Branch = "master"
-		}
-		if len(src.Mapping) == 0 {
-			src.Mapping = [][2]string{{"/", "/"}}
-		}
-	}
-	fmt.Printf("# Loaded %d sources from ./UPSTREAM\n\n", len(m.Sources))
-
-	for _, src := range m.Sources {
-		if src.Name == "" {
-			fmt.Printf("skipping unnamed source\n")
-			continue
-		}
-		src.fetch(buildid)
-	}
-
-	dupBranch("master", dstBranch(buildid))
+	dupBranch(t.BranchIn, dstBranch(buildid))
+	dupBranch(t.BranchIn, getBaseBranch(buildid))
 
 	// Apply mapping
-	for _, src := range m.Sources {
-		baseBranch := src.baseBranch(buildid)
-		for mapid, mapping := range src.Mapping {
-			var (
-				from = path.Clean(mapping[0])
-				to   = path.Clean(mapping[1])
-			)
-			mapBranch := src.mapBranch(buildid, mapid)
-			dupBranch(baseBranch, mapBranch)
-			// 1: apply the source path ('subdirectory-filter')
-			if from != "/" {
-				zoomIn(mapBranch, from)
-			}
-
-			// 2: apply the dst path ('tree-filter')
-			if to != "" {
-				zoomOut(mapBranch, to)
-			}
-
-			// 3: apply the resulting branch as a new layer
-			mergeLayer(dstBranch(buildid), mapBranch)
+	baseBranch := getBaseBranch(buildid)
+	for mapid, mapping := range t.Mapping {
+		var (
+			from = path.Clean(mapping[0])
+			to   = path.Clean(mapping[1])
+		)
+		mapBranch := getMapBranch(buildid, mapid)
+		dupBranch(baseBranch, mapBranch)
+		// 1: apply the source path ('subdirectory-filter')
+		if from != "/" {
+			zoomIn(mapBranch, from)
 		}
+
+		// 2: apply the dst path ('tree-filter')
+		if to != "" {
+			zoomOut(mapBranch, to)
+		}
+
+		// 3: apply the resulting branch as a new layer
+		mergeLayer(dstBranch(buildid), mapBranch)
 	}
 
 }
@@ -173,17 +158,12 @@ func dstBranch(buildid string) string {
 	return path.Join("citizenkane", buildid, "dst")
 }
 
-func (src *Source) fetch(buildid string) {
-	fmt.Printf("# [%s] fetch(%s)\n", buildid, src.Name)
-	fmt.Printf("git fetch -f %s %s:%s\n\n", src.Url, src.Branch, src.baseBranch(buildid))
+func getBaseBranch(buildid string) string {
+	return path.Join("citizenkane", buildid, "base")
 }
 
-func (src *Source) baseBranch(buildid string) string {
-	return path.Join("citizenkane", buildid, "base", src.Name)
-}
-
-func (src *Source) mapBranch(buildid string, mapid int) string {
-	return path.Join("citizenkane", buildid, "map", src.Name, fmt.Sprintf("%d", mapid))
+func getMapBranch(buildid string, mapid int) string {
+	return path.Join("citizenkane", buildid, "map", fmt.Sprintf("%d", mapid))
 }
 
 // borrowed from github.com/docker/docker/utils/random.go
