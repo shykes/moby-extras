@@ -89,7 +89,7 @@ func main() {
 	}
 
 	var m Manifest
-	if err := toml.Unmarshal(data, &m); err != nil {
+	if _, err := toml.Decode(string(data), &m); err != nil {
 		log.Fatal(err)
 	}
 	// Apply defaults
