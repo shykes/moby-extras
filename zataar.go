@@ -95,6 +95,9 @@ func (t *Transform) run(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("# Starting build %s\n", buildid)
+
+	backup()
+
 	fmt.Printf("set -e\n")
 
 	dupBranch(t.BranchIn, dstBranch(buildid))
@@ -122,7 +125,23 @@ func (t *Transform) run(cmd *cobra.Command, args []string) {
 		// 3: apply the resulting branch as a new layer
 		mergeLayer(dstBranch(buildid), mapBranch)
 	}
+	restore()
 	fmt.Printf("echo '%s'\n", dstBranch(buildid))
+}
+
+func backup() {
+	fmt.Printf("# backup()\n")
+	fmt.Printf("git stash save -u --all\n")
+	fmt.Printf("git update-ref ZATAARHEAD HEAD\n\n")
+	fmt.Printf("(\n")
+}
+
+func restore() {
+	fmt.Printf(")\n")
+	fmt.Printf("# restore()\n")
+	fmt.Printf("git update-ref HEAD ZATAARHEAD\n")
+	fmt.Printf("git checkout -f HEAD\n")
+	fmt.Printf("git stash pop\n\n")
 }
 
 func mergeLayer(bottom, top string) {
