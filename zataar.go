@@ -122,7 +122,7 @@ func (t *Transform) run(cmd *cobra.Command, args []string) {
 		// 3: apply the resulting branch as a new layer
 		mergeLayer(dstBranch(buildid), mapBranch)
 	}
-
+	fmt.Printf("echo '%s'\n", dstBranch(buildid))
 }
 
 func mergeLayer(bottom, top string) {
