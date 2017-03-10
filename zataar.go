@@ -91,7 +91,7 @@ func (t *Transform) run(cmd *cobra.Command, args []string) {
 		t.Mapping = append(t.Mapping, [2]string{words[0], words[1]})
 	}
 	if len(t.Mapping) == 0 {
-		t.Mapping = [][2]string{{"/", "/"}}
+		return
 	}
 
 	fmt.Printf("# Starting build %s\n", buildid)
