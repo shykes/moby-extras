@@ -146,7 +146,7 @@ func restore() {
 
 func mergeLayer(bottom, top string) {
 	fmt.Printf("# mergeLayer(%s, %s)\n", bottom, top)
-	fmt.Printf("git checkout '%s' && git merge -X ours '%s' && git checkout '%s' && git merge '%s'\n\n",
+	fmt.Printf("git checkout '%s' && git merge -X ours '%s' && git checkout '%s' && git merge --no-commit '%s'\n\n",
 		top, bottom, bottom, top,
 	)
 }
