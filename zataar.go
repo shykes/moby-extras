@@ -156,7 +156,7 @@ func zoomIn(branch, dir string) {
 	fmt.Printf("(cd $(git rev-parse --show-toplevel) && git filter-branch -f --subdirectory-filter '%s' '%s')\n\n", dir, branch)
 }
 
-func zoomOut(branch, dir string) {
+func zoomOut_slow(branch, dir string) {
 	fmt.Printf("# zoomOut(%s, %s)\n", branch, dir)
 	tmp := RandomString()[:8]
 	fmt.Printf(`(
@@ -166,6 +166,20 @@ func zoomOut(branch, dir string) {
 
 `, tmp, tmp, dir, tmp, dir, tmp, branch,
 	)
+}
+
+func zoomOut(branch, dir string) {
+	fmt.Printf("# zoomOut(%s, %s)\n", branch, dir)
+	fmt.Printf(`(
+		git filter-branch -f --index-filter '
+			git ls-files -s |
+			sed "s/	/	%s\//" |
+			GIT_INDEX_FILE=$GIT_INDEX_FILE.new git update-index --index-info &&
+			if test -f "$GIT_INDEX_FILE.new"; then mv $GIT_INDEX_FILE.new $GIT_INDEX_FILE; fi
+		' %s
+	)
+`,
+	dir, branch)
 }
 
 func dupBranch(src, dst string) {
