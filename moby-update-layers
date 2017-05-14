@@ -44,13 +44,17 @@ update_all_caches() {
 	}
 }
 
+get_mountpoint() {
+	echo "pkg/$1"
+}
+
 update_cache() {
 	layer=$1
 	src=layers/$layer/src
 	tmp=layers/$layer/tmp/$RANDOM
 	cache=layers/$layer/cache
 	git branch $tmp $src
-	mountpoint=$(git config --get layer.$layer.mountpoint)
+	mountpoint=$(get_mountpoint "$layer")
 	transform_branch $tmp $mountpoint
 	echo "[$layer] moving $tmp to $cache"
 	git branch -m -f $tmp $cache
