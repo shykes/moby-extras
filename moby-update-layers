@@ -82,21 +82,23 @@ export GIT_CONFIG=`pwd`/moby.conf
 
 # Change the working directory to the root of the git repo
 REPOROOT=$(git rev-parse --show-toplevel)
+cd $REPOROOT
 
-export GIT_DIR=$REPOROOT/.git
-TMP=$(mktemp -d)
-export GIT_WORK_TREE=$TMP
-cd $GIT_WORK_TREE
+##export GIT_DIR=$REPOROOT/.git
+##TMP=$(mktemp -d)
+##export GIT_WORK_TREE=$TMP
+##cd $GIT_WORK_TREE
 
 # Initialize an empty temporary index file
-TMP2=$(mktemp)
-cp $GIT_DIR/index $TMP2
-export GIT_INDEX_FILE=$TMP2
-echo '100644 8a1218a1024a212bb3db30becd860315f9f3ac52 0	foo' | git update-index --index-info
-git rm --cached foo
+##TMP2=$(mktemp)
+##cp $GIT_DIR/index $TMP2
+##export GIT_INDEX_FILE=$TMP2
+##echo '100644 8a1218a1024a212bb3db30becd860315f9f3ac52 0	foo' | git update-index --index-info
+##git rm --cached foo
+
 
 update_all_sources
 update_all_caches
 
-rm -fr "$TMP"
-rm -f "$TMP2"
+##rm -fr "$TMP"
+##rm -f "$TMP2"
