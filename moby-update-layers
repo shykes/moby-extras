@@ -93,7 +93,7 @@ restore() {
 }
 
 # Change the working directory to the root of the git repo
-git rev-parse --show-toplevel
+cd "$(git rev-parse --show-toplevel)"
 
 update_all_sources
 update_all_caches
