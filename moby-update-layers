@@ -67,7 +67,6 @@ transform_branch() {
 	if [ -z "$mountpoint" ]; then
 		return
 	fi
-	backup
 	git filter-branch -f --index-filter "
 		git ls-files -s |
 		{
@@ -80,20 +79,6 @@ transform_branch() {
 			mv \$GIT_INDEX_FILE.new \$GIT_INDEX_FILE;
 		fi
 	" $branch
-	restore
-}
-
-backup() {
-	echo "--- Backing up work tree"
-	git stash save -u --all
-	git update-ref LAYER_UPDATE_HEAD HEAD
-}
-
-restore() {
-	echo "--- Restoring work tree"
-	git update-ref HEAD LAYER_UPDATE_HEAD
-	git checkout -f HEAD
-	git stash pop
 }
 
 # Change the working directory to the root of the git repo
