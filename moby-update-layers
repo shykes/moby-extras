@@ -2,6 +2,7 @@
 
 set -e
 
+
 list_layers() {
 	git config --name-only --get-regexp 'layer\.[^.]*\.url' |
 	sed -e 's/^layer\.//' -e 's/\.url$//' |
@@ -90,6 +91,9 @@ restore() {
 	git checkout -f HEAD
 	git stash pop
 }
+
+# Change the working directory to the root of the git repo
+git rev-parse --show-toplevel
 
 update_all_sources
 update_all_caches
