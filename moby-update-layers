@@ -78,6 +78,7 @@ transform_branch() {
 }
 
 
+export GIT_CONFIG=`pwd`/moby.conf
 
 # Change the working directory to the root of the git repo
 REPOROOT=$(git rev-parse --show-toplevel)
