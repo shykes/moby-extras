@@ -45,7 +45,7 @@ update_all_caches() {
 }
 
 get_mountpoint() {
-	echo "pkg/$1"
+	echo "components/$1"
 }
 
 update_cache() {
@@ -72,7 +72,7 @@ transform_branch() {
 		return
 	fi
 	git filter-branch -f --index-filter "
-		git ls-files -s | sed 's,	,	$mountpoint,' |
+		git ls-files -s | sed 's,	,	$mountpoint/,' |
 		GIT_INDEX_FILE=\$GIT_INDEX_FILE.new git update-index --index-info &&
 		if test -f \"\$GIT_INDEX_FILE.new\"; then
 			mv \$GIT_INDEX_FILE.new \$GIT_INDEX_FILE;
