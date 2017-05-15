@@ -3,43 +3,43 @@
 set -e
 
 
-list_layers() {
-	git config --name-only --get-regexp 'layer\.[^.]*\.url' |
-	sed -e 's/^layer\.//' -e 's/\.url$//' |
+list_components() {
+	git config --name-only --get-regexp 'component\.[^.]*\.url' |
+	sed -e 's/^component\.//' -e 's/\.url$//' |
 	{
-		while read layer; do
-			if [ $(git config --get layer.$layer.skip) ]; then
-				echo >&2 "[$layer] Skipping"
+		while read component; do
+			if [ $(git config --get component.$component.skip) ]; then
+				echo >&2 "[$component] Skipping"
 				continue
 			fi
-			echo "$layer"
+			echo "$component"
 		done
 	}
 }
 
 update_all_sources() {
-	echo "--- Checking layer remote sources for updates"
-	list_layers | {
-		while read layer; do
-			update_source $layer
+	echo "--- Checking component remote sources for updates"
+	list_components | {
+		while read component; do
+			update_source $component
 		done
 	}
 }
 
 update_source() {
-	layer=$1
-	url=$(git config --get layer.$layer.url)
-	branch=$(git config --get layer.$layer.branch)
-	echo "[$layer] fetching $url $branch"
-	git fetch $url $branch:layers/$layer/src
+	component=$1
+	url=$(git config --get component.$component.url)
+	branch=$(git config --get component.$component.branch)
+	echo "[$component] fetching $url $branch"
+	git fetch $url $branch:components/$component/src
 }
 
 
 update_all_caches() {
-	echo "--- Updating layer caches"
-	list_layers | {
-		while read layer; do
-			update_cache $layer
+	echo "--- Updating component caches"
+	list_components | {
+		while read component; do
+			update_cache $component
 		done
 	}
 }
@@ -49,14 +49,14 @@ get_mountpoint() {
 }
 
 update_cache() {
-	layer=$1
-	src=layers/$layer/src
-	tmp=layers/$layer/tmp/$RANDOM
-	cache=layers/$layer/cache
+	component=$1
+	src=components/$component/src
+	tmp=components/$component/tmp/$RANDOM
+	cache=components/$component/cache
 	git branch $tmp $src
-	mountpoint=$(get_mountpoint "$layer")
+	mountpoint=$(get_mountpoint "$component")
 	transform_branch $tmp $mountpoint
-	echo "[$layer] moving $tmp to $cache"
+	echo "[$component] moving $tmp to $cache"
 	git branch -m -f $tmp $cache
 }
 
@@ -81,7 +81,7 @@ transform_branch() {
 }
 
 
-export GIT_CONFIG=`pwd`/moby.conf
+export GIT_CONFIG=`pwd`/components.conf
 
 # Change the working directory to the root of the git repo
 REPOROOT=$(git rev-parse --show-toplevel)
