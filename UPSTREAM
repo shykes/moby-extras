@@ -1,0 +1,25 @@
+
+[[source]]
+
+	name = "libpack"
+	owner = "shykes"
+
+	url = "https://github.com/docker/libpack"
+	branch = "master"
+
+	mapping = [
+		["/", "gopkg/libpack"]
+	]
+
+[[source]]
+
+	name = "libcontainer"
+	owner = "shykes"
+
+	url = "https://github.com/docker/libcontainer"
+	branch = "master"
+
+	mapping = [
+		["/", "gopkg/libcontainer"]
+	]
+
