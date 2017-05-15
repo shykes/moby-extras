@@ -31,7 +31,7 @@ update_source() {
 	url=$(git config --get component.$component.url)
 	branch=$(git config --get component.$component.branch)
 	echo "[$component] fetching $url $branch"
-	git fetch $url $branch:components/$component/src
+	git fetch $url $branch:refs/components/$component/src
 }
 
 
@@ -50,9 +50,9 @@ get_mountpoint() {
 
 update_cache() {
 	component=$1
-	src=components/$component/src
-	tmp=components/$component/tmp/$RANDOM
-	cache=components/$component/cache
+	src=refs/components/$component/src
+	tmp=refs/components/$component/tmp/$RANDOM
+	cache=refs/components/$component/cache
 	git branch $tmp $src
 	mountpoint=$(get_mountpoint "$component")
 	transform_branch $tmp $mountpoint
