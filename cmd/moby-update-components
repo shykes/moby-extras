@@ -72,18 +72,13 @@ transform_branch() {
 		return
 	fi
 	git filter-branch -f --index-filter "
-		git ls-files -s |
-		{
-			while read line; do
-				echo \"\${line/	/	$mountpoint/}\"
-			done
-		} | GIT_INDEX_FILE=\$GIT_INDEX_FILE.new git update-index --index-info &&
+		git ls-files -s | sed 's,	,	$mountpoint,' |
+		GIT_INDEX_FILE=\$GIT_INDEX_FILE.new git update-index --index-info &&
 		if test -f \"\$GIT_INDEX_FILE.new\"; then
 			mv \$GIT_INDEX_FILE.new \$GIT_INDEX_FILE;
 		fi
 	" $branch
 }
-
 
 export GIT_CONFIG=`pwd`/components.conf
 
