@@ -2,28 +2,54 @@
 
 set -e
 
+cmd_usage() {
+	cat <<-EOF
+		Usage: $(basename $0) list | update (--all | <component>)
+EOF
+}
+
+cmd_list() {
+	for component in $(list_components); do
+		echo -n "$component "
+		dir="$REPOROOT/components/$component"
+		[ ! -d "$dir" ] && echo "not-merged" && continue
+		latestCommit=$(git log --format=%H -1 "$dir")
+		baseCommit=$(git merge-base $latestCommit master)
+		mergeCommit=$(git log --merges -1 --format=%H --grep "Merge commit 'refs/components/$component/cache'" master)
+		# get the second parent of mergecommit
+		# TODO: actually take upstream, not cached version, look up commit in notes
+		upstreamCommit=$(git rev-list --merges --parents $mergeCommit -1 --min-parents=2 --max-parents=2 | cut -d' ' -f3)
+		echo "latest:$latestCommit merge:$mergeCommit upstream(todo):$upstreamCommit"
+	done
+}
+
+cmd_update() {
+	[ -z "$1" ] && cmd_usage && exit 1
+	case "$1" in
+	--help)
+		cmd_usage
+		return
+		;;
+	--all)
+		components="$(list_components)"
+		;;
+	*)
+		components="$1"
+		;;
+	esac
+	echo Updating: $components
+
+	for component in $components; do
+		update_source "$component"
+	done
+	for component in $components; do
+		update_cache "$component"
+	done
+}
 
 list_components() {
 	git config --name-only --get-regexp 'component\.[^.]*\.url' |
-	sed -e 's/^component\.//' -e 's/\.url$//' |
-	{
-		while read component; do
-			if [ $(git config --get component.$component.skip) ]; then
-				echo >&2 "[$component] Skipping"
-				continue
-			fi
-			echo "$component"
-		done
-	}
-}
-
-update_all_sources() {
-	echo "--- Checking component remote sources for updates"
-	list_components | {
-		while read component; do
-			update_source $component
-		done
-	}
+	sed -e 's/^component\.//' -e 's/\.url$//'
 }
 
 update_source() {
@@ -34,15 +60,6 @@ update_source() {
 	git fetch $url $branch:refs/components/$component/src
 }
 
-
-update_all_caches() {
-	echo "--- Updating component caches"
-	list_components | {
-		while read component; do
-			update_cache $component
-		done
-	}
-}
 
 get_mountpoint() {
 	echo "components/$1"
@@ -86,21 +103,19 @@ export GIT_CONFIG=`pwd`/components.conf
 REPOROOT=$(git rev-parse --show-toplevel)
 cd $REPOROOT
 
-##export GIT_DIR=$REPOROOT/.git
-##TMP=$(mktemp -d)
-##export GIT_WORK_TREE=$TMP
-##cd $GIT_WORK_TREE
-
-# Initialize an empty temporary index file
-##TMP2=$(mktemp)
-##cp $GIT_DIR/index $TMP2
-##export GIT_INDEX_FILE=$TMP2
-##echo '100644 8a1218a1024a212bb3db30becd860315f9f3ac52 0	foo' | git update-index --index-info
-##git rm --cached foo
-
-
-update_all_sources
-update_all_caches
-
-##rm -fr "$TMP"
-##rm -f "$TMP2"
+case "$1" in
+list)
+	cmd_list
+	;;
+update)
+	shift
+	cmd_update $*
+	;;
+help)
+	cmd_usage
+	;;
+*)
+	cmd_usage >&2
+	exit 1
+	;;
+esac
