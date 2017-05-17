@@ -15,11 +15,12 @@ cmd_list() {
 		[ ! -d "$dir" ] && echo "not-merged" && continue
 		latestCommit=$(git log --format=%H -1 "$dir")
 		baseCommit=$(git merge-base $latestCommit master)
-		mergeCommit=$(git log --merges -1 --format=%H --grep "Merge commit 'refs/components/$component/cache'" master)
+		mergeCommit=$(git log --merges -1 --format=%H --grep "Merging component $component from " master)
 		# get the second parent of mergecommit
-		# TODO: actually take upstream, not cached version, look up commit in notes
-		upstreamCommit=$(git rev-list --merges --parents $mergeCommit -1 --min-parents=2 --max-parents=2 | cut -d' ' -f3)
-		echo "latest:$latestCommit merge:$mergeCommit upstream(todo):$upstreamCommit"
+		upstreamCommits=$(git rev-list --merges --parents $mergeCommit -1 --min-parents=2)
+		upstreamCommit=$(echo "$upstreamCommits" | cut -d' ' -f3-)
+		[[ "$upstreamCommit" != "${upstreamCommit/ /}" ]] && echo "Merge commit with more than 2 parents detected: $upstreamCommits" && exit 1
+		echo "latest:$latestCommit merge:$mergeCommit upstream:$upstreamCommit"
 	done
 }
 
@@ -44,6 +45,10 @@ cmd_update() {
 	done
 	for component in $components; do
 		update_cache "$component"
+		url=$(git config --get component.$component.url)
+		branch=$(git config --get component.$component.branch)
+		# if you change the wording make sure you update the grep in list_components
+		git merge -m "Merging component $component from $branch at $url" --allow-unrelated-histories "refs/components/$component/cache"
 	done
 }
 
@@ -66,7 +71,7 @@ get_mountpoint() {
 }
 
 update_cache() {
-	component=$1
+	component="$1"
 	src=refs/components/$component/src
 	tmp=refs/components/$component/tmp/$RANDOM
 	cache=refs/components/$component/cache
@@ -79,6 +84,7 @@ update_cache() {
 	git update-ref -d $tmp
 	git update-ref -d refs/original/$tmp
 	git show-ref --verify $cache
+
 }
 
 transform_branch() {
@@ -94,6 +100,8 @@ transform_branch() {
 		if test -f \"\$GIT_INDEX_FILE.new\"; then
 			mv \$GIT_INDEX_FILE.new \$GIT_INDEX_FILE;
 		fi
+	" --msg-filter "
+		cat && echo Upstream-commit: \$GIT_COMMIT
 	" $branch
 }
 
