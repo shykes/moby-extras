@@ -58,7 +58,7 @@ cmd_update() {
 		url=$(git config --get component.$component.url)
 		branch=$(git config --get component.$component.branch)
 		# if you change the wording make sure you update the grep in get_merge_commits
-		git merge -m "Merging component '$component' from $url $branch" --allow-unrelated-histories "refs/components/$component/HEAD"
+		git merge -m "Merge component '$component' from $url $branch" --allow-unrelated-histories "refs/components/$component/HEAD"
 	done
 }
 
@@ -70,7 +70,7 @@ get_latest_commit() {
 get_merge_commit() {
 	component="$1"
 	branch="$2"
-	git log --merges -1 --format=%H --grep "Merging component '$component' from " "$branch"
+	git log --merges -1 --format=%H --grep "Merge component '$component' from " "$branch"
 }
 
 get_upstream_commit() {
