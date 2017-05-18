@@ -142,7 +142,8 @@ transform_branch() {
 			mv \$GIT_INDEX_FILE.new \$GIT_INDEX_FILE;
 		fi
 	" --msg-filter "
-		cat && echo Upstream-commit: \$GIT_COMMIT
+		sed '\${/^\$/d;p}' | head -n -1
+		echo Upstream-commit: \$GIT_COMMIT
 	" $branch
 }
 
