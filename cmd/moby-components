@@ -118,7 +118,7 @@ update_cache() {
 	git show-ref --verify $tmp
 	mountpoint=$(get_mountpoint "$component")
 
-	transform_branch $tmp $mountpoint
+	transform_branch $tmp $mountpoint $component
 
 	echo "[$component] moving $tmp to $cache"
 	git update-ref $cache $(git show-ref --verify -s $tmp)
@@ -131,6 +131,7 @@ update_cache() {
 transform_branch() {
 	branch=$1
 	mountpoint=$2
+	component=$3
 
 	if [ -z "$mountpoint" ]; then
 		return
@@ -144,6 +145,7 @@ transform_branch() {
 	" --msg-filter "
 		sed '\${/^\$/d;p}' | head -n -1
 		echo Upstream-commit: \$GIT_COMMIT
+		echo Component: $component
 	" $branch
 }
 
