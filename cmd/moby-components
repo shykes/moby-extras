@@ -58,7 +58,7 @@ cmd_update() {
 		url=$(git config --get component.$component.url)
 		branch=$(git config --get component.$component.branch)
 		# if you change the wording make sure you update the grep in get_merge_commits
-		git merge -m "Merging component '$component' from $url $branch" --allow-unrelated-histories "refs/components/$component/cache"
+		git merge -m "Merging component '$component' from $url $branch" --allow-unrelated-histories "refs/components/$component/HEAD"
 	done
 }
 
@@ -92,7 +92,7 @@ fetch_source() {
 	url=$(git config --get component.$component.url)
 	branch=$(git config --get component.$component.branch)
 	echo "[$component] fetching $url $branch"
-	git fetch $url $branch:refs/components/$component/src
+	git fetch $url $branch:refs/components/$component/FETCH_HEAD
 }
 
 fetch_all_source() {
@@ -109,9 +109,9 @@ get_mountpoint() {
 
 update_cache() {
 	component="$1"
-	src=refs/components/$component/src
+	src=refs/components/$component/FETCH_HEAD
 	tmp=refs/components/$component/tmp/$RANDOM
-	cache=refs/components/$component/cache
+	cache=refs/components/$component/HEAD
 
 	# create $tmp ref starting at same commit as $src ref
 	git update-ref $tmp $(git show-ref --verify -s $src)
