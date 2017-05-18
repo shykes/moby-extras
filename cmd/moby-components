@@ -3,8 +3,15 @@
 set -e
 
 cmd_usage() {
-	cat <<-EOF
-		Usage: $(basename $0) list | update (--all | <component>)
+	cat <<EOF
+Usage: $(basename $0) <command>
+
+Tool to manage multiple upstream git repositories in one big repository.
+
+Commands:
+	list
+	fetch	<component> | --all
+	update  <component> | --all
 EOF
 }
 
@@ -20,30 +27,37 @@ cmd_list() {
 	done
 }
 
-cmd_update() {
-	[ -z "$1" ] && cmd_usage && exit 1
+get_components() {
+	[ -z "$1" ] && cmd_usage >&2 && exit 1
 	case "$1" in
 	--help)
 		cmd_usage
-		return
+		exit 0
 		;;
 	--all)
-		components="$(list_components)"
+		list_components
 		;;
 	*)
-		components="$1"
+		echo "$1"
 		;;
 	esac
-	echo Updating: $components
+}
 
-	for component in $components; do
-		update_source "$component"
-	done
+cmd_fetch() {
+	components=$(get_components $*)
+	fetch_all_source $components
+}
+
+cmd_update() {
+	components=$(get_components $*)
+	fetch_all_source $components
+
+	echo "Updating: $components"
 	for component in $components; do
 		update_cache "$component"
 		url=$(git config --get component.$component.url)
 		branch=$(git config --get component.$component.branch)
-		# if you change the wording make sure you update the grep in list_components
+		# if you change the wording make sure you update the grep in get_merge_commits
 		git merge -m "Merging component $component from $branch at $url" --allow-unrelated-histories "refs/components/$component/cache"
 	done
 }
@@ -73,14 +87,21 @@ list_components() {
 	sed -e 's/^component\.//' -e 's/\.url$//'
 }
 
-update_source() {
-	component=$1
+fetch_source() {
+	component="$1"
 	url=$(git config --get component.$component.url)
 	branch=$(git config --get component.$component.branch)
 	echo "[$component] fetching $url $branch"
 	git fetch $url $branch:refs/components/$component/src
 }
 
+fetch_all_source() {
+	components="$*"
+	echo "Fetching: $components"
+	for component in $components; do
+		fetch_source "$component"
+	done
+}
 
 get_mountpoint() {
 	echo "components/$1"
@@ -134,6 +155,10 @@ cd $REPOROOT
 case "$1" in
 list)
 	cmd_list
+	;;
+fetch)
+	shift
+	cmd_fetch $*
 	;;
 update)
 	shift
