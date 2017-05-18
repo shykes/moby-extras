@@ -13,13 +13,9 @@ cmd_list() {
 		echo -n "$component "
 		dir="$REPOROOT/components/$component"
 		[ ! -d "$dir" ] && echo "not-merged" && continue
-		latestCommit=$(git log --format=%H -1 "$dir")
-		baseCommit=$(git merge-base $latestCommit master)
-		mergeCommit=$(git log --merges -1 --format=%H --grep "Merging component $component from " master)
-		# get the second parent of mergecommit
-		upstreamCommits=$(git rev-list --merges --parents $mergeCommit -1 --min-parents=2)
-		upstreamCommit=$(echo "$upstreamCommits" | cut -d' ' -f3-)
-		[[ "$upstreamCommit" != "${upstreamCommit/ /}" ]] && echo "Merge commit with more than 2 parents detected: $upstreamCommits" && exit 1
+		latestCommit=$(get_latest_commit "$dir")
+		mergeCommit=$(get_merge_commit "$component" master)
+		upstreamCommit=$(get_upstream_commit "$mergeCommit")
 		echo "latest:$latestCommit merge:$mergeCommit upstream:$upstreamCommit"
 	done
 }
@@ -52,6 +48,26 @@ cmd_update() {
 	done
 }
 
+get_latest_commit() {
+	dir="$1"
+	git log --format=%H -1 "$dir"
+}
+
+get_merge_commit() {
+	component="$1"
+	branch="$2"
+	git log --merges -1 --format=%H --grep "Merging component $component from " "$branch"
+}
+
+get_upstream_commit() {
+	mergeCommit="$1"
+	# get the second parent of mergecommit
+	upstreamCommits=$(git rev-list --merges --parents "$mergeCommit" -1 --min-parents=2)
+	upstreamCommit=$(echo "$upstreamCommits" | cut -d' ' -f3-)
+	[[ "$upstreamCommit" != "${upstreamCommit/ /}" ]] && echo "Merge commit with more than 2 parents detected: $upstreamCommits" && return 1
+	echo "$upstreamCommit"
+}
+
 list_components() {
 	git config --name-only --get-regexp 'component\.[^.]*\.url' |
 	sed -e 's/^component\.//' -e 's/\.url$//'
@@ -75,10 +91,14 @@ update_cache() {
 	src=refs/components/$component/src
 	tmp=refs/components/$component/tmp/$RANDOM
 	cache=refs/components/$component/cache
+
+	# create $tmp ref starting at same commit as $src ref
 	git update-ref $tmp $(git show-ref --verify -s $src)
 	git show-ref --verify $tmp
 	mountpoint=$(get_mountpoint "$component")
+
 	transform_branch $tmp $mountpoint
+
 	echo "[$component] moving $tmp to $cache"
 	git update-ref $cache $(git show-ref --verify -s $tmp)
 	git update-ref -d $tmp
