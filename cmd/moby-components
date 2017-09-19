@@ -48,6 +48,21 @@ cmd_fetch() {
 	fetch_all_source $components
 }
 
+newer_git_version() {
+	needed_major_version="2"
+	needed_minor_version="9"
+	actual_version="$(git --version | awk '{print $3}')"
+	actual_version=${actual_version//./ }
+	actual_major_version="$(echo "$actual_version" | awk '{print $1}')"
+	actual_minor_version="$(echo "$actual_version" | awk '{print $2}')"
+	if [ "$actual_major_version" -lt "$needed_major_version" ]; then
+		return 1
+	fi
+	if [ "$actual_minor_version" -lt "$needed_minor_version" ]; then
+		return 1
+	fi
+}
+
 cmd_update() {
 	components=$(get_components $*)
 	fetch_all_source $components
@@ -58,7 +73,11 @@ cmd_update() {
 		url=$(git config --get component.$component.url)
 		branch=$(git config --get component.$component.branch)
 		# if you change the wording make sure you update the grep in get_merge_commits
-		git merge -m "Merge component '$component' from $url $branch" --allow-unrelated-histories "refs/components/$component/HEAD"
+		allow_unrelated_histories=""
+		if newer_git_version; then
+			allow_unrelated_histories="--allow_unrelated_histories"
+		fi
+		git merge -m "Merge component '$component' from $url $branch" $allow_unrelated_histories "refs/components/$component/HEAD"
 	done
 }
 
