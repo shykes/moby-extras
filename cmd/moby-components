@@ -75,7 +75,7 @@ cmd_update() {
 		# if you change the wording make sure you update the grep in get_merge_commits
 		allow_unrelated_histories=""
 		if newer_git_version; then
-			allow_unrelated_histories="--allow_unrelated_histories"
+			allow_unrelated_histories="--allow-unrelated-histories"
 		fi
 		git merge -m "Merge component '$component' from $url $branch" $allow_unrelated_histories "refs/components/$component/HEAD"
 	done
